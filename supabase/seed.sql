@@ -1,1 +1,1 @@
--- Lookup seeds will be added with the Milestone 1 database migrations.
+-- Canonical lookup seeds are installed by the Milestone 1 migration.

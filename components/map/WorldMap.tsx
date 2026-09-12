@@ -5,8 +5,24 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { MAP_STYLE_URL, INITIAL_VIEW } from "@/lib/geo/map-config";
 import type { IncidentSummary } from "@/types/incidents";
 
-export function WorldMap({ incidents }: { incidents: IncidentSummary[] }) {
+export function WorldMap({ incidents, placing, onPick, point, focus }: { incidents: IncidentSummary[]; placing:boolean; onPick:(point:[number,number])=>void; point:[number,number]|null; focus?:IncidentSummary }) {
   const container = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const placement = useRef({placing,onPick});
+  useEffect(()=>{placement.current={placing,onPick};},[placing,onPick]);
+  useEffect(()=>{
+    let disposed=false;
+    let remove:(()=>void)|undefined;
+    if(point && mapRef.current) {
+      const map=mapRef.current;
+      void import("maplibre-gl").then(({Marker})=>{
+        if(disposed)return;
+        const marker=new Marker({color:"#0f172a"}).setLngLat(point).addTo(map);
+        remove=()=>marker.remove();
+      });
+    }
+    return ()=>{disposed=true;remove?.();};
+  },[point]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -38,10 +54,18 @@ export function WorldMap({ incidents }: { incidents: IncidentSummary[] }) {
           container: container.current,
           style: MAP_STYLE_URL,
           ...INITIAL_VIEW,
+          ...(focus ? {center:focus.geometry.coordinates as [number,number],zoom:6} : {}),
           attributionControl: { compact: false },
           dragRotate: false,
           pitchWithRotate: false,
           maxPitch: 0,
+        });
+        mapRef.current = map;
+        map.on("click",(event)=>{
+          if(placement.current.placing) {
+            const location=event.lngLat.wrap();
+            placement.current.onPick([location.lng,location.lat]);
+          }
         });
         map.touchZoomRotate.disableRotation();
         removeMarkers = addIncidentMarkers(map, incidents);
@@ -70,13 +94,14 @@ export function WorldMap({ incidents }: { incidents: IncidentSummary[] }) {
       resize?.disconnect();
       removeMarkers?.();
       map?.remove();
+      mapRef.current=null;
     };
-  }, [incidents]);
+  }, [incidents,focus]);
 
   return (
     <section aria-label="Interactive world map" className="relative min-h-0 flex-1 overflow-hidden bg-slate-200">
       <div className="absolute inset-0">
-        <div ref={container} data-testid="world-map" data-map-status={status} className="h-full w-full" />
+        <div ref={container} data-testid="world-map" data-map-status={status} className={"h-full w-full"+(placing?" is-placing":"")} />
       </div>
       {status === "loading" && <p role="status" className="absolute left-4 top-4 rounded bg-white px-3 py-2 text-sm shadow">Loading map…</p>}
       {status === "error" && (

@@ -1,12 +1,13 @@
 import { requireUser } from "@/lib/auth/session";
 import { MapWorkspace } from "@/components/map/MapWorkspace";
 import { listVisibleIncidents } from "@/lib/incidents/read";
+import { getIncidentChoices } from "@/lib/incidents/lookups";
 
-export default async function MapPage({ searchParams }: { searchParams: Promise<{ signout?: string }> }) {
+export default async function MapPage({ searchParams }: { searchParams: Promise<{ signout?: string; created?:string }> }) {
   await requireUser();
-  const { signout } = await searchParams;
-  const incidents = await listVisibleIncidents();
-  return <><MapWorkspace incidents={incidents} />
+  const { signout,created } = await searchParams;
+  const [incidents,choices] = await Promise.all([listVisibleIncidents(),getIncidentChoices()]);
+  return <><MapWorkspace key={created || "map"} incidents={incidents} choices={choices} created={created} />
     {signout === "failed" && <p role="alert" className="mb-6 text-red-800">Sign out did not finish. Please try again.</p>}
   </>;
 }

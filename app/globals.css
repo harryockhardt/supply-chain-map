@@ -19,3 +19,6 @@ body {
   outline: 3px solid #0f172a;
   outline-offset: 3px;
 }
+
+.is-placing .maplibregl-canvas { cursor: crosshair; }
+.is-placing .incident-marker { pointer-events: none; }

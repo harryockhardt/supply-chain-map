@@ -8,7 +8,8 @@ The five original planning documents remain unchanged. This file records impleme
 - Milestone 1: Supabase database foundation installed and checked. Project: dsrbnnffdwigojjzhzzo.
 - Milestone 2: authentication and protected routes implemented; owner email confirmation and admin role verified.
 - Milestone 3: world map rendering, navigation, resizing, timeout and retry verified.
-- Milestone 4: persisted incidents render with category colors and open read-only detail pages. Creation, editing, removal UI and status filtering remain later milestones.
+- Milestone 4: persisted incidents render with category colors and open read-only detail pages.
+- Milestone 5: point placement, validated incident form and atomic database save implemented and verified. Editing, removal UI and status filtering remain later milestones.
 
 ## Configuration
 
@@ -138,3 +139,27 @@ Verification:
 - Security advisor reported Auth leaked-password protection disabled, an existing Auth setting unrelated to the read RPC. No database/RLS findings were reported. Follow-up: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 
 Local reset from scratch still requires Docker, which has not been available; the migration was applied and verified on the connected development project. The HTTP auth test's page assertion was updated for the map, but that complete login/logout suite was not rerun for Milestone 4.
+
+## Milestone 5 — completed 12 September 2026
+
+Press + Add incident, then click/tap a point on the map. A preview pin and a form capture title, active category, event description, local event time, status, current state, last verification time, optional resolution time, multiple transport modes/effects, impact, severity and sources. The device's local times are converted to ISO UTC before server validation. Source publication time is optional.
+
+Changing the point keeps the draft. Cancel discards the draft without saving. Source rows can be added and removed. Validation failures retain inputs and selections; native form reset is prevented. The form disables controls while saving. Unsaved drafts are in-memory only.
+
+lib/incidents/create-validation.ts performs shared input validation, and the Server Action authenticates again before calling public.create_incident. Lookup choices come from the active database rows. Migration 20260912090039_create_incident.sql matches the remote migration history.
+
+The SECURITY INVOKER create function writes the incident, modes, effects and sources in one transaction with existing grants, RLS, constraints and deferred integrity triggers. Ownership always comes from auth.uid(); client-supplied owner/id/deletion fields are rejected by the RPC. It validates active lookup choices and rejects missing selections or evidence for non-Unverified statuses. There is no service-role access, new table, client role change, or edit/delete flow.
+
+A successful save refreshes incident data and returns to the map centered on the new point with a confirmation. If a network failure leaves the result uncertain, the form asks the user to check the map before retrying. Repeated submissions after an uncertain response are not deduplicated automatically.
+
+Verification:
+
+- Typecheck, lint, production build and all eight unit tests passed.
+- tests/integration/incident-create.sql passed using a temporary normal-user identity inside a rolled-back transaction: ownership, multiple modes/effects, all four statuses, evidence requirements, required fields, invalid categories/modes/effects/status/severity, owner spoof rejection, point-only/range validation, anonymous/no-identity denial, and rollback with no partial incident after a late source error.
+- Browser: +, point placement, changing point while retaining input, source validation, adding/removing a source row, pending state, save, full reload and opening the new marker all passed. The selected modes, effects, severity, source and UTC times matched the persisted database record.
+- Mobile: placement, form layout and cancellation checked at 390 × 844. Cancel left the database record count unchanged.
+- Security advisor still reports only the previously documented disabled Auth leaked-password protection setting.
+
+The explicitly fictional Unverified record TEST — Milestone 5 form-created incident remains for review (id b45d7d31-d5c8-47fa-8821-da27690e536b). It was created through the real UI, owned by the signed-in account, at [3.872005288, 46.780395298], with Road/Rail, Delay/Rerouting, severity 3 and one labelled test reference. The two earlier Milestone 4 fixtures also remain.
+
+Next milestone: My Incidents (Milestone 6). Original product/architecture documents are unchanged.

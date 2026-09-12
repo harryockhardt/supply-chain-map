@@ -272,6 +272,7 @@ Initial transport-mode seed list:
 - Road
 - Rail
 - Pipeline
+- Other
 
 An incident may affect more than one mode. “Multimodal” does not need to be stored as a separate mode; it is represented by selecting multiple modes.
 

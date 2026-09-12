@@ -182,6 +182,7 @@ Initial seeds:
 - `road` — Road
 - `rail` — Rail
 - `pipeline` — Pipeline
+- `other` — Other
 
 ### `incident_transport_modes`
 

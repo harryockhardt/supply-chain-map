@@ -273,6 +273,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      read_incidents: { Args: { incident_id?: string }; Returns: Json }
       remove_incident: { Args: { target_id: string }; Returns: undefined }
     }
     Enums: {

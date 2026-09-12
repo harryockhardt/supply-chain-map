@@ -54,7 +54,7 @@ response = await request("/map");
 assert.equal(response.status, 200);
 html = await response.text();
 assert.ok(html.includes(email), "Authenticated page identifies current user");
-assert.ok(html.includes("signed in"));
+assert.ok(html.includes("Interactive world map"));
 assert.match(response.headers.get("cache-control"), /no-store|private/);
 response = await request("/map");
 assert.equal(response.status, 200, "Session survives a fresh page request");

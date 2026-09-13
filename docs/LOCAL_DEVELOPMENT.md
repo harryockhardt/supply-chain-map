@@ -1,6 +1,6 @@
 # Local development
 
-The five original planning documents remain unchanged. This file records implementation progress against docs/ROADMAP.md.
+This file records implementation progress against docs/ROADMAP.md. The user-requested Other transport option is reflected in PRODUCT.md and DATA_MODEL.md.
 
 ## Current state
 
@@ -9,13 +9,14 @@ The five original planning documents remain unchanged. This file records impleme
 - Milestone 2: authentication and protected routes implemented; owner email confirmation and admin role verified.
 - Milestone 3: world map rendering, navigation, resizing, timeout and retry verified.
 - Milestone 4: persisted incidents render with category colors and open read-only detail pages.
-- Milestone 5: point placement, validated incident form and atomic database save implemented and verified. Editing, removal UI and status filtering remain later milestones.
+- Milestone 5: point placement, validated incident form and atomic database save implemented and verified.
+- Milestone 6: owned incident list, editing, source management and soft removal implemented and verified. Status filtering remains Milestone 7.
 
 ## Configuration
 
 Use Node.js 24. Copy .env.example to .env.local and fill in the project's URL and publishable key. The current local .env.local is configured. It is excluded from Git.
 
-NEXT_PUBLIC_APP_URL should be http://localhost:3000 for local development. Use the same host throughout signup and email confirmation so the PKCE cookie is available. Supabase Auth's Site URL should match it and its redirect allowlist should include http://localhost:3000/auth/callback. If Supabase falls back to the root Site URL, the application forwards the returned code to the callback.
+NEXT_PUBLIC_APP_URL is http://127.0.0.1:3000 for local development. Supabase Auth's Site URL matches it and the redirect allowlist contains http://127.0.0.1:3000/auth/callback. Signup/login pages opened on another host offer a Continue link to this exact origin before showing the form, so PKCE cookies and confirmation links agree. Callback redirects also use the configured origin. Rebuild and restart after changing NEXT_PUBLIC_APP_URL.
 
 No service-role key or database password is used by the application.
 
@@ -27,7 +28,7 @@ npm run build
 npm start -- --hostname 127.0.0.1
 ```
 
-Open http://localhost:3000. Stop the server with Control-C. The current preview runs the production build.
+Open http://127.0.0.1:3000. Stop the server with Control-C. The current preview runs the production build.
 
 For editing:
 ```sh
@@ -163,3 +164,35 @@ Verification:
 The explicitly fictional Unverified record TEST — Milestone 5 form-created incident remains for review (id b45d7d31-d5c8-47fa-8821-da27690e536b). It was created through the real UI, owned by the signed-in account, at [3.872005288, 46.780395298], with Road/Rail, Delay/Rerouting, severity 3 and one labelled test reference. The two earlier Milestone 4 fixtures also remain.
 
 Next milestone: My Incidents (Milestone 6). Original product/architecture documents are unchanged.
+
+## Milestone 6 — completed 12 September 2026
+
+My Incidents (/my-incidents) lists only the signed-in user's non-deleted records, ordered by last update. The application header links to it and the map. Owned details expose Edit incident and Remove incident; another user's edit URL displays an authorization message. Admin management UI remains Milestone 8.
+
+The shared IncidentForm now supports both creation and prefilled editing. Editing covers the point, core fields, dates, current state, status, modes/effects (including Other), severity and source add/edit/remove. Changing the point retains the draft; Cancel leaves persisted data unchanged. Existing inactive lookup selections can be retained. The editor initializes device-local dates after hydration, avoiding server/browser timezone mismatches.
+
+The authenticated update Server Action validates the form again and calls public.update_incident. Migration 20260912092931_update_incident.sql matches remote history. The SECURITY INVOKER function locks the parent, checks the supplied updated_at version, and updates parent/children atomically under existing RLS. It preserves source IDs and creation timestamps for retained sources, rejects foreign/duplicate source IDs, and keeps owner_id and created_at unchanged. Validation failures roll back every change. A stale version is rejected with an explicit reload message rather than overwriting a newer edit. Generated RPC metadata was checked against types/database.ts.
+
+Removal uses the existing narrow remove_incident function after a confirmation in the UI and a fresh owner check in the Server Action. It sets deleted_at and invalidates map, list and detail views. No physical delete, restore UI or new privileged credential is introduced. The existing function's controlled private helper retains the database owner/admin authorization check.
+
+Verification:
+
+- Typecheck, lint and all nine unit tests passed; production build passed.
+- tests/integration/incident-manage.sql passed both before migration commit in a rollback transaction and against the applied migration. It uses two temporary normal-user identities and rolls back all fixtures.
+- Checks cover own edits, geometry and state changes, all four statuses, source editing with stable identity, last-source removal only with Unverified, unchanged owner/created timestamp, advancing updated_at, stale edit rejection, invalid-field and late-source-error rollback, direct cross-owner parent/child write denial, cross-owner removal denial, anonymous/no-identity denial, and soft-delete invisibility with the underlying record retained.
+- Browser: owned list and editor, prefilled values, source requirement with retained draft, point move, state/mode/effect changes, save and full reload passed. Source add/edit/remove and Unverified transition passed. Removal cancellation and confirmation passed; the test record stayed absent from the list after reload and its detail showed Not found. Database inspection confirmed a soft-deleted row remains. Desktop map layout and 390 × 844 mobile editor checked.
+- Security advisor still reports only the existing disabled [leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) setting; no new database/RLS findings.
+
+No product scope change. Status filters remain Milestone 7; admin UI remains Milestone 8. Local clean-reset verification still requires Docker as previously documented.
+
+## Authentication repair — 13 September 2026
+
+Supabase Site URL was http://localhost:3000 and its redirect allowlist was empty. Both are now configured for http://127.0.0.1:3000, with /auth/callback as the exact allowed redirect. The local environment/example and CLI callback list match. The confirmation template currently uses the supported {{ .ConfirmationURL }} variable; the earlier invalid-template error is historical and the current template was retained.
+
+Signup and resend both build their callback from a validated application origin. Login/signup on another host provide a Continue link to the configured address before showing a credential form. The confirmation callback always returns to the configured origin. A resend form is available without repeating signup or entering a password, and failed callback guidance explains that the email may already be confirmed even when automatic sign-in fails.
+
+Verification: lint, TypeScript/build, eleven unit tests and tests/integration/auth-redirect-http.mjs passed. The HTTP test checks that canonical pages load, localhost pages offer the exact canonical link without a redirect loop, callback errors return to the correct address, the resend form is rendered, and anonymous map access remains blocked. Browser signup rendered at http://127.0.0.1:3000/signup.
+
+External blocker: custom Gmail SMTP is enabled with smtp.gmail.com:587, but Sender email address and Username were empty on inspection. Earlier Auth logs show Gmail 535 BadCredentials. The user must enter valid SMTP identity/credentials in Supabase (never in source or chat). [Google App Password guidance](https://support.google.com/accounts/answer/185833). Default Supabase email is not a substitute for general-user delivery: [SMTP restrictions](https://supabase.com/docs/guides/auth/auth-smtp).
+
+As of this check only the confirmed admin account existed in auth.users. No email confirmation was disabled, no account was manually confirmed, and no test login was claimed. Full non-admin signup → delivered email → confirmation → password sign-in remains pending SMTP setup and the user's choice of test email. The live preview is on port 3000.

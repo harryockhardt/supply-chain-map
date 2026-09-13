@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-const base = process.env.AUTH_TEST_URL || "http://localhost:3000";
+const base = process.env.AUTH_TEST_URL || "http://127.0.0.1:3000";
 const email = process.env.AUTH_TEST_EMAIL;
 const password = process.env.AUTH_TEST_PASSWORD;
 if (!email || !password) throw new Error("Use a disposable confirmed test account via AUTH_TEST_EMAIL and AUTH_TEST_PASSWORD.");

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateCredentials } from "./validation";
+import { appOrigin } from "./urls";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -32,8 +33,9 @@ export async function signUp(_state: AuthState, form: FormData): Promise<AuthSta
   const password = String(form.get("password") ?? "");
   const invalid = validateCredentials(email, password, true);
   if (invalid) return { error: invalid };
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!appUrl) return { error: "Account creation is not configured yet." };
+  let appUrl: string;
+  try { appUrl = appOrigin(process.env.NEXT_PUBLIC_APP_URL); }
+  catch { return { error: "Account creation is not configured yet." }; }
   let signedIn = false;
   try {
     const supabase = await createClient();
@@ -42,6 +44,8 @@ export async function signUp(_state: AuthState, form: FormData): Promise<AuthSta
       options: { emailRedirectTo: new URL("/auth/callback", appUrl).toString() },
     });
     if (error) {
+      console.error("Signup failed", error.code);
+      if (error.code === "email_address_not_authorized") return { error: "Confirmation email delivery is not configured for this address. Please contact the project owner." };
       if (error.status === 429 || error.code === "over_email_send_rate_limit") {
         return { error: "Email requests are temporarily limited. Please wait and try again." };
       }
@@ -56,6 +60,26 @@ export async function signUp(_state: AuthState, form: FormData): Promise<AuthSta
     redirect("/map");
   }
   return { message: "Check your email for a confirmation link. Open it in this browser, then sign in. If you already have an account, sign in instead." };
+}
+
+export async function resendConfirmation(_state: AuthState, form: FormData): Promise<AuthState> {
+  const email = String(form.get("email") ?? "").trim();
+  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email address." };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup", email,
+      options: { emailRedirectTo: new URL("/auth/callback", appOrigin(process.env.NEXT_PUBLIC_APP_URL)).toString() },
+    });
+    if (error) {
+      console.error("Confirmation resend failed", error.code);
+      if (error.status === 429 || error.code === "over_email_send_rate_limit") return { error: "Email requests are temporarily limited. Wait at least a minute before trying again." };
+      return { error: "The confirmation email could not be sent. Please try later or contact the project owner." };
+    }
+    return { message: "If this address has an account awaiting confirmation, a new link has been requested. Check your inbox and spam folder, and use the newest link. Already confirmed? Sign in below." };
+  } catch {
+    return { error: "We couldn't request a confirmation email. Please try again shortly." };
+  }
 }
 
 export async function signOut(): Promise<void> {

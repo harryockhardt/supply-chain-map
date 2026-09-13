@@ -3,10 +3,16 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signIn, signUp, type AuthState } from "@/lib/auth/actions";
+import { ResendConfirmation } from "./ResendConfirmation";
 
-export function AuthForm({ mode, initialError }: { mode: "login" | "signup"; initialError?: string }) {
+export function AuthForm({ mode, initialError, canonicalUrl }: { mode: "login" | "signup"; initialError?: string; canonicalUrl?: string }) {
   const signup = mode === "signup";
   const [state, action, pending] = useActionState<AuthState, FormData>(signup ? signUp : signIn, {});
+  if (canonicalUrl) return <section className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
+    <h1 className="text-2xl font-semibold">Continue to the app</h1>
+    <p className="mt-3">Use the app’s main address so your confirmation link opens correctly.</p>
+    <a className="mt-5 inline-block rounded-lg bg-slate-900 px-4 py-3 text-white" href={canonicalUrl}>Continue</a>
+  </section>;
   return (
     <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <p className="mb-6 text-sm font-medium text-slate-600">Supply Chain Disruption Map</p>
@@ -34,6 +40,7 @@ export function AuthForm({ mode, initialError }: { mode: "login" | "signup"; ini
           {pending ? "Please wait…" : signup ? "Create account" : "Sign in"}
         </button>
       </form>
+      <ResendConfirmation />
       <p className="mt-6 text-center text-sm text-slate-600">
         {signup ? "Already have an account? " : "New here? "}
         <Link className="font-medium text-slate-900 underline underline-offset-4" href={signup ? "/login" : "/signup"}>

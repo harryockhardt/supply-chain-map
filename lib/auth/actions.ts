@@ -46,8 +46,12 @@ export async function signUp(_state: AuthState, form: FormData): Promise<AuthSta
     if (error) {
       console.error("Signup failed", error.code);
       if (error.code === "email_address_not_authorized") return { error: "Confirmation email delivery is not configured for this address. Please contact the project owner." };
+      if (error.code === "user_already_exists" || error.code === "email_exists") return { error: "An account with this email already exists. Sign in instead." };
       if (error.status === 429 || error.code === "over_email_send_rate_limit") {
         return { error: "Email requests are temporarily limited. Please wait and try again." };
+      }
+      if (error.code === "unexpected_failure" || error.code === "email_provider_disabled" || error.code === "smtp_error") {
+        return { error: "We couldn't send the confirmation email. The project email service needs to be configured by the owner. Please try again after that is fixed." };
       }
       return { error: "We couldn't create your account. Please try again shortly, or sign in if you already have one." };
     }

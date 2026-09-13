@@ -273,6 +273,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      update_incident: { Args: { target_id: string; expected_updated_at: string; payload: Json }; Returns: string }
       create_incident: { Args: { payload: Json }; Returns: string }
       read_incidents: { Args: { incident_id?: string }; Returns: Json }
       remove_incident: { Args: { target_id: string }; Returns: undefined }

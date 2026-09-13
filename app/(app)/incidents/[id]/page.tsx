@@ -1,3 +1,4 @@
+import {RemoveIncident} from "@/components/incidents/RemoveIncident";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
@@ -7,11 +8,12 @@ import { safeSourceUrl } from "@/lib/incidents/parse";
 function time(value: string) {
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) + " UTC";
 }
-export default async function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IncidentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams:Promise<{updated?:string}> }) {
   const { user } = await requireUser();
   const { id } = await params;
   const incident = await getIncident(id);
   if (!incident) notFound();
+  const {updated}=await searchParams;
   const severity = ["", "Low", "Moderate", "Significant", "Severe", "Critical"][incident.severity];
   return <article className="min-h-0 flex-1 overflow-y-auto p-6">
     <div className="mx-auto max-w-3xl">
@@ -19,6 +21,8 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
       <p className="mt-6 text-sm text-slate-600">{incident.category_label}</p>
       <h1 className="mt-1 text-3xl font-semibold">{incident.title}</h1>
       <p className="mt-3 capitalize">{incident.status} · Severity {incident.severity}: {severity}</p>
+      {updated==="1"&&<p role="status" className="mt-4 rounded bg-green-50 p-3 text-green-800">Changes saved.</p>}
+      {incident.owner_id===user.id&&<div className="mt-5 flex flex-wrap items-center gap-4"><Link className="rounded bg-slate-900 px-4 py-2 text-white" href={`/incidents/${id}/edit`}>Edit incident</Link><RemoveIncident id={id} title={incident.title}/></div>}
       <dl className="mt-6 grid gap-5">
         {[
           ["What happened", incident.description],

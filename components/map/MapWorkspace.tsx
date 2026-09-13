@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import type { IncidentSummary } from "@/types/incidents";
-import { CreateIncidentForm, type IncidentChoices } from "@/components/incidents/CreateIncidentForm";
+import { IncidentForm, type IncidentChoices } from "@/components/incidents/IncidentForm";
 import { WorldMap } from "./WorldMap";
 import { categoryColor } from "./category-style";
 
@@ -23,7 +23,7 @@ export function MapWorkspace({ incidents, choices, created }: { incidents: Incid
     <WorldMap incidents={incidents} placing={placing} onPick={pick} point={point} focus={incidents.find(i=>i.id===created)} />
     {!placing && !point && <button className="absolute left-4 top-4 z-10 rounded bg-slate-900 px-4 py-2 text-white shadow md:left-76" onClick={()=>setPlacing(true)}>+ Add incident</button>}
     {placing && <div role="status" className="absolute left-4 right-14 top-4 z-10 rounded bg-white p-3 shadow md:left-76">Click or tap the map to place one point. <button className="ml-2 underline" onClick={()=>setPlacing(false)}>Cancel placement</button></div>}
-    {point && <div className={placing?"hidden":"contents"}><CreateIncidentForm point={point} choices={choices} onChangePoint={()=>setPlacing(true)} onCancel={()=>setPoint(null)} /></div>}
+    {point && <div className={placing?"hidden":"contents"}><IncidentForm point={point} choices={choices} onChangePoint={()=>setPlacing(true)} onCancel={()=>setPoint(null)} /></div>}
     {created && !point && !placing && incidents.some(i=>i.id===created) && <p role="status" className="absolute bottom-10 left-4 rounded bg-white p-3 shadow md:left-76">Incident saved. Select its marker to read it.</p>}
     {incidents.length === 0 && <p className="absolute bottom-10 left-4 right-14 rounded bg-white p-3 text-sm shadow md:left-76">No incidents have been saved yet.</p>}
   </div>;

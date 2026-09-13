@@ -24,3 +24,9 @@ test("Rejects empty fields, invalid severity, missing selections, dates and non-
  assert.throws(()=>validateCreateIncident({...valid,geometry:{type:"Point",coordinates:[0,91]}}));
  for(const source of [{source_name:"",url:"https://example.org"},{source_name:"X",url:"javascript:alert(1)"}]) assert.throws(()=>validateCreateIncident({...valid,sources:[source]}));
 });
+
+test("Editing preserves source identity and rejects malformed IDs",()=>{
+ const source={id:"40000000-0000-4000-8000-000000000001",source_name:"Report",url:"https://example.org"};
+ assert.equal(validateCreateIncident({...valid,sources:[source]}).sources[0].id,source.id);
+ for(const id of [null,123,"not-an-id"]) assert.throws(()=>validateCreateIncident({...valid,sources:[{...source,id}]}),/Invalid source/);
+});

@@ -6,7 +6,7 @@ export type CreateIncidentInput = {
  event_start_at: string; status: IncidentStatus; current_state_description: string;
  last_verified_at: string; resolved_at: string | null; severity: Severity;
  impact_description: string; modes: string[]; effects: string[];
- sources: { source_name: string; url: string; published_at: string | null }[];
+ sources: { id?: string; source_name: string; url: string; published_at: string | null }[];
 };
 export function validateCreateIncident(value: unknown): CreateIncidentInput {
  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Complete the incident form.");
@@ -37,7 +37,8 @@ export function validateCreateIncident(value: unknown): CreateIncidentInput {
   const s = value as Record<string, unknown>;
   if (typeof s.source_name !== "string" || !s.source_name.trim()) throw new Error("Each source needs a name.");
   if (typeof s.url !== "string" || !safeSourceUrl(s.url.trim())) throw new Error("Each source needs a valid HTTP or HTTPS link.");
-  return { source_name:s.source_name.trim(), url:s.url.trim(), published_at:date(s.published_at,"Source publication time",true) };
+  if (s.id !== undefined && (typeof s.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id))) throw new Error("Invalid source. Reload the incident.");
+  return { ...(typeof s.id === "string" ? {id:s.id} : {}), source_name:s.source_name.trim(), url:s.url.trim(), published_at:date(s.published_at,"Source publication time",true) };
  });
  if (status !== "unverified" && !sources.length) throw new Error("Active, Upcoming and Resolved incidents require at least one source.");
  return {

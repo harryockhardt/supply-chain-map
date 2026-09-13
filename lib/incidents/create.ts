@@ -17,5 +17,6 @@ export async function saveIncident(value: unknown): Promise<CreateState> {
    : "We could not confirm the save. Check your connection and the map before retrying."};
  }
  revalidatePath("/map");
+ revalidatePath("/my-incidents");
  redirect("/map?created=" + encodeURIComponent(data));
 }

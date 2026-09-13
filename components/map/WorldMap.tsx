@@ -10,6 +10,7 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
   const mapRef = useRef<MapLibreMap | null>(null);
   const placement = useRef({placing,onPick});
   useEffect(()=>{placement.current={placing,onPick};},[placing,onPick]);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   useEffect(()=>{
     let disposed=false;
     let remove:(()=>void)|undefined;
@@ -22,8 +23,7 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
       });
     }
     return ()=>{disposed=true;remove?.();};
-  },[point]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  },[point,status]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {

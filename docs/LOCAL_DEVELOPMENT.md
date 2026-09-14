@@ -193,6 +193,23 @@ Signup and resend both build their callback from a validated application origin.
 
 Verification: lint, TypeScript/build, eleven unit tests and tests/integration/auth-redirect-http.mjs passed. The HTTP test checks that canonical pages load, localhost pages offer the exact canonical link without a redirect loop, callback errors return to the correct address, the resend form is rendered, and anonymous map access remains blocked. Browser signup rendered at http://127.0.0.1:3000/signup.
 
-External blocker: custom Gmail SMTP is enabled with smtp.gmail.com:587, but Sender email address and Username were empty on inspection. Earlier Auth logs show Gmail 535 BadCredentials. The user must enter valid SMTP identity/credentials in Supabase (never in source or chat). [Google App Password guidance](https://support.google.com/accounts/answer/185833). Default Supabase email is not a substitute for general-user delivery: [SMTP restrictions](https://supabase.com/docs/guides/auth/auth-smtp).
+Historical email failure: Auth logs showed Gmail 535 BadCredentials. The initial claim that Sender email address and Username were empty was incorrect: browser screenshots confirmed both were populated; the accessibility text had omitted their values. The user subsequently reported fixing delivery with their email setup. On 14 September, the database contains both the admin and a normal account. Do not overwrite the user's working SMTP configuration. Default Supabase email is not a substitute for general-user delivery: [SMTP restrictions](https://supabase.com/docs/guides/auth/auth-smtp).
 
-As of this check only the confirmed admin account existed in auth.users. No email confirmation was disabled, no account was manually confirmed, and no test login was claimed. Full non-admin signup → delivered email → confirmation → password sign-in remains pending SMTP setup and the user's choice of test email. The live preview is on port 3000.
+At the initial 13 September check only the admin account existed. The user's later successful signup supersedes that historical blocker. No email confirmation was disabled and no existing account was manually confirmed during this repair. The live preview uses port 3000.
+
+## Milestone 6 verification — 14 September 2026
+
+The existing My Incidents query correctly restricted owner_id to the verified session user and excluded deleted_at rows. The live admin list matched its six database-owned records and omitted the normal user's record. The record titled "user" belongs to the admin; a record title does not determine ownership. Shared map reads remain available to all authenticated users.
+
+The ownership query is now isolated in lib/incidents/owned-query.ts and used by listMyIncidents. A regression test uses the installed Supabase client to verify the outgoing owner/deletion filters for two different identities and rejects an empty identity before any request. Admins use the same ownership filter; the broader admin interface remains Milestone 8.
+
+Verification performed:
+
+- All 15 unit tests, lint, TypeScript/production build, and auth-redirect-http.mjs passed.
+- incident-manage.sql passed against hosted Supabase with rolled-back fixtures: editing, four statuses, source add/edit/remove, geometry, required fields, stale updates, cross-owner writes/child changes, and soft deletion.
+- owned-incidents.sql passed with rolled-back normal-user/admin fixtures: separate owned lists, shared reads, empty admin-owned list, and exclusion of removed records.
+- Browser, admin's own-record flow: prefilled editor, required-source validation, current-state/status update and source addition, save/full reload, removal cancellation, confirmed removal and list/full reload passed. Another owner's editor was denied by the Milestone 6 UI.
+- Browser verification record cabfc862-b364-46cf-8bde-dd0cf1eaeb9c was soft-deleted through the app. Original seven visible records remain; no original incident was edited or removed.
+- Normal-user browser verification is awaiting sign-in as the normal account. Both currently inspected browser sessions were admin sessions; do not claim a normal-user browser pass until verified.
+
+Security advisor reports no database/RLS findings. Its existing Auth warning is disabled [leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection), outside this milestone's ownership changes. No schema or permission changes were required.

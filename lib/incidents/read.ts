@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { parseIncidents } from "./parse";
 import type { IncidentSummary } from "@/types/incidents";
+import { ownedIncidentQuery } from "./owned-query";
 
 async function read(incidentId?: string) {
   const supabase = await createClient();
@@ -24,8 +25,7 @@ export async function getIncident(id: string) {
 
 export async function listMyIncidents() {
  const {supabase,user}=await requireUser();
- const {data,error}=await supabase.from("incidents").select("id,title,status,updated_at")
-  .eq("owner_id",user.id).is("deleted_at",null).order("updated_at",{ascending:false});
+ const {data,error}=await ownedIncidentQuery(supabase,user.id);
  if(error) throw new Error("Your incidents could not be loaded. Please try again.");
  return data;
 }

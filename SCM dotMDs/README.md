@@ -8,7 +8,7 @@ The core object is a **disruption record**, not merely a map pin. Each record co
 
 ## Project status
 
-**Current phase:** v0.1 implementation through Milestone 8 (admin view and override). See [`docs/LOCAL_DEVELOPMENT.md`](docs/LOCAL_DEVELOPMENT.md) for verification results and remaining limitations. The full security/integrity pass is next (Milestone 9).
+**Current phase:** product and architecture definition for v0.1.
 
 The project should not expand beyond the v0.1 scope until the complete v0.1 flow works end to end and passes its acceptance checks.
 

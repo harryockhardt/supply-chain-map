@@ -7,15 +7,24 @@ import type { IncidentSummary } from "@/types/incidents";
 
 export function WorldMap({ incidents, placing, onPick, point, focus }: { incidents: IncidentSummary[]; placing:boolean; onPick:(point:[number,number])=>void; point:[number,number]|null; focus?:IncidentSummary }) {
   const container = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
+  useEffect(() => {
+    if (!mapInstance) return;
+    let disposed = false;
+    let remove: (() => void) | undefined;
+    void import("./incident-markers").then(({ addIncidentMarkers }) => {
+      if (!disposed) remove = addIncidentMarkers(mapInstance, incidents);
+    });
+    return () => { disposed = true; remove?.(); };
+  }, [mapInstance, incidents]);
   const placement = useRef({placing,onPick});
   useEffect(()=>{placement.current={placing,onPick};},[placing,onPick]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   useEffect(()=>{
     let disposed=false;
     let remove:(()=>void)|undefined;
-    if(point && mapRef.current) {
-      const map=mapRef.current;
+    if(point && mapInstance) {
+      const map=mapInstance;
       void import("maplibre-gl").then(({Marker})=>{
         if(disposed)return;
         const marker=new Marker({color:"#0f172a"}).setLngLat(point).addTo(map);
@@ -23,14 +32,13 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
       });
     }
     return ()=>{disposed=true;remove?.();};
-  },[point,status]);
+  },[point,mapInstance]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     let disposed = false;
     let map: MapLibreMap | undefined;
     let resize: ResizeObserver | undefined;
-    let removeMarkers: (() => void) | undefined;
     const fail = (text: string) => {
       if (disposed) return;
       setMessage(text);
@@ -46,7 +54,6 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
     async function initialize() {
       try {
         const { Map, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
-        const { addIncidentMarkers } = await import("./incident-markers");
         if (disposed || !container.current) return;
         // Next.js must serve the worker and its sibling module from public/.
         setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
@@ -60,7 +67,6 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
           pitchWithRotate: false,
           maxPitch: 0,
         });
-        mapRef.current = map;
         map.on("click",(event)=>{
           if(placement.current.placing) {
             const location=event.lngLat.wrap();
@@ -68,7 +74,7 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
           }
         });
         map.touchZoomRotate.disableRotation();
-        removeMarkers = addIncidentMarkers(map, incidents);
+        setMapInstance(map);
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
         map.getCanvas().setAttribute("aria-label", "World map. Use arrow keys to pan and plus or minus to zoom.");
         map.on("load", ready);
@@ -92,11 +98,9 @@ export function WorldMap({ incidents, placing, onPick, point, focus }: { inciden
       disposed = true;
       window.clearTimeout(timeout);
       resize?.disconnect();
-      removeMarkers?.();
       map?.remove();
-      mapRef.current=null;
     };
-  }, [incidents,focus]);
+  }, [focus]);
 
   return (
     <section aria-label="Interactive world map" className="relative min-h-0 flex-1 overflow-hidden bg-slate-200">

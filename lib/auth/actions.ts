@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateCredentials } from "./validation";
 import { appOrigin } from "./urls";
+import { authFailureDiagnostic, signupFailure } from "./errors";
 
 export type AuthState = { error?: string; message?: string };
 
@@ -44,16 +45,9 @@ export async function signUp(_state: AuthState, form: FormData): Promise<AuthSta
       options: { emailRedirectTo: new URL("/auth/callback", appUrl).toString() },
     });
     if (error) {
-      console.error("Signup failed", error.code);
-      if (error.code === "email_address_not_authorized") return { error: "Confirmation email delivery is not configured for this address. Please contact the project owner." };
-      if (error.code === "user_already_exists" || error.code === "email_exists") return { error: "An account with this email already exists. Sign in instead." };
-      if (error.status === 429 || error.code === "over_email_send_rate_limit") {
-        return { error: "Email requests are temporarily limited. Please wait and try again." };
-      }
-      if (error.code === "unexpected_failure" || error.code === "email_provider_disabled" || error.code === "smtp_error") {
-        return { error: "We couldn't send the confirmation email. The project email service needs to be configured by the owner. Please try again after that is fixed." };
-      }
-      return { error: "We couldn't create your account. Please try again shortly, or sign in if you already have one." };
+      const failure = signupFailure(error);
+      console.error("Signup failed", authFailureDiagnostic(error, failure.category));
+      return { error: failure.error };
     }
     signedIn = Boolean(data.session);
   } catch {
@@ -76,7 +70,7 @@ export async function resendConfirmation(_state: AuthState, form: FormData): Pro
       options: { emailRedirectTo: new URL("/auth/callback", appOrigin(process.env.NEXT_PUBLIC_APP_URL)).toString() },
     });
     if (error) {
-      console.error("Confirmation resend failed", error.code);
+      console.error("Confirmation resend failed", authFailureDiagnostic(error, signupFailure(error).category));
       if (error.status === 429 || error.code === "over_email_send_rate_limit") return { error: "Email requests are temporarily limited. Wait at least a minute before trying again." };
       return { error: "The confirmation email could not be sent. Please try later or contact the project owner." };
     }

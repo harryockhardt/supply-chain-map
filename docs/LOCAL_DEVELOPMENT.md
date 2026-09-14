@@ -10,7 +10,9 @@ This file records implementation progress against docs/ROADMAP.md. The user-requ
 - Milestone 3: world map rendering, navigation, resizing, timeout and retry verified.
 - Milestone 4: persisted incidents render with category colors and open read-only detail pages.
 - Milestone 5: point placement, validated incident form and atomic database save implemented and verified.
-- Milestone 6: owned incident list, editing, source management and soft removal implemented and verified. Status filtering remains Milestone 7.
+- Milestone 6: owned incident list, editing, source management and soft removal implemented and verified; see the normal-user browser verification limitation below.
+- Milestone 7: independent status filters implemented and verified on desktop and mobile.
+- Milestone 8: admin list, creator visibility and cross-owner editing/removal implemented; authorization tests and admin browser checks passed.
 
 ## Configuration
 
@@ -213,3 +215,46 @@ Verification performed:
 - Normal-user browser verification is awaiting sign-in as the normal account. Both currently inspected browser sessions were admin sessions; do not claim a normal-user browser pass until verified.
 
 Security advisor reports no database/RLS findings. Its existing Auth warning is disabled [leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection), outside this milestone's ownership changes. No schema or permission changes were required.
+
+
+## Milestone 7 — completed 14 September 2026
+
+Read all 14 project Markdown files, including SCM dotMDs and the recovered discussion, before resuming implementation. The current docs/ROADMAP.md milestone numbering is authoritative; the recovered discussion predates it. The original copies omit the later Other transport option, which remains present in the current product/data-model documents and implementation.
+
+The map now offers independent Upcoming, Active, Resolved and Unverified checkboxes. All four start enabled, preserving the previous default permitted by PRODUCT.md. No selection shows no incidents; selected statuses combine with OR. Filter state is local to the mounted map workspace and resets to all statuses after a full reload or remount. No saved filters or URL persistence are introduced.
+
+lib/incidents/filters.ts centralizes typed filter state, toggling and incident selection. StatusFilters is shared between the desktop sidebar and an expandable mobile panel. WorldMap receives matching incidents; marker components have no filter rules. Counts and the category legend reflect matching records, and an empty-result message explains when filters hide every record.
+
+Incident markers update independently from map initialization, retaining zoom/position when filters change. The placement preview has a separate lifecycle, so changing filters retains an unsaved point and form draft. The map area contains its overlays below the mobile filter panel.
+
+Verification:
+
+- All 33 unit tests passed, including 16 exhaustive combinations with two fixture records per status across categories. Tests verify matching IDs through GeoJSON conversion, off/on restoration, no duplicate statuses, empty input, and refreshed status values after an edit.
+- Lint and the final production build, including TypeScript checks, passed.
+- Signed-in Chrome: all 16 combinations matched exact marker IDs against the seven existing records (one Active, six Unverified). Upcoming and Resolved positive matches are covered by unit fixtures; the live data has no examples of those statuses. No database records were added, edited or removed for this milestone.
+- Browser: a zoomed marker retained its screen position after filtering; filtered markers opened the correct detail; an unsaved placement/form retained its title while toggling filters and was then cancelled.
+- Mobile at 390 × 844: collapsed/expanded filter panel, independent toggles, matching counts, empty-result guidance and visible map checked. Viewport restored afterward.
+
+No schema, authorization, authentication or SMTP changes were needed. Existing unrelated authentication work was left intact. Admin view/override remains Milestone 8.
+
+
+## Milestone 8 — completed 14 September 2026
+
+/admin lists all non-deleted incidents, identifies the creator, and provides open/edit/remove actions. The header exposes Admin only to an admin. The list displays a profile display name when available and a stable contributor ID for unambiguous attribution; both current profiles have no display name. No email lookup or new profile fields were added. My Incidents retains its owner filter even for admins.
+
+requireActor verifies the session with getUser and reads the current profiles.role server-side. requireAdmin protects both the route layout and the admin data function. A normal user attempting /admin is redirected to the map with an Access denied message. Profile lookup failures fail closed. No client-supplied role or user_metadata value is trusted. React cache shares this result only inside a request.
+
+The existing detail/editor and Server Actions now permit the verified owner or admin through a shared canManageIncident check. Every mutation still uses the caller's authenticated Supabase client and existing RLS/RPC authorization. update_incident retains validation, atomic child changes and optimistic concurrency. removeIncident uses the existing soft-delete RPC; admins return to /admin and normal owners return to My Incidents. Successful mutations invalidate admin, owned list, map, detail and editor paths. No schema migration, new privileged credential or permission change was required.
+
+Verification:
+
+- All 38 unit tests passed. New tests execute the actual server modules with controlled session/database boundaries: direct owner/admin action success, direct normal-user cross-owner denial before writes, current database role checks instead of user_metadata, revoked admin denial, fail-closed role lookup, guarded admin data access and cache invalidation.
+- tests/integration/admin-incidents.sql passed on hosted Supabase with rolled-back fixtures. It verifies normal-user cross-owner RPC and direct-write denial, profile privacy/role safety, admin reads of multiple owners and names, admin parent/child edits, retained owner/creation time, advancing update time, stale-edit/evidence rejection, cross-owner soft deletion, deleted parent/child invisibility, preserved underlying row, and immediate denial after role revocation. Anonymous RPC privileges are denied.
+- Lint, production build including TypeScript, git diff whitespace checks, auth-redirect-http.mjs and an anonymous /admin HTTP request passed.
+- Signed-in admin browser: all original seven records listed with correct owners; cross-owner editor opened, a current-state update saved and survived full reload on the temporary fixture 7c8d3116-c06f-4a87-9c94-e0bad5faa5b9. Database inspection confirmed the normal user's ownership remained intact.
+- The removal confirmation and cancellation were checked in the browser. Final removal was verified through the direct Server Action tests and real database RPC, not a browser confirmation click. The temporary browser fixture was soft-deleted through the RPC as admin; a full admin-list reload returned to the original seven records. Original incidents were not edited or removed.
+- Mobile admin list checked at 390 × 844; viewport restored. The current browser session is admin. A normal-account browser walkthrough was not performed; normal-user denials are covered by server-module tests and actual database-role tests.
+
+The security advisor reports no database/RLS findings. Its existing Auth warning remains disabled [leaked-password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). Authentication/SMTP configuration was not changed. Supabase's current [RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security) and changelog were reviewed for the authorization work.
+
+Next: Milestone 9, the full v0.1 security/integrity pass. The v0.1 release checkpoint remains Milestone 10.
